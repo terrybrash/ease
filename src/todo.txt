@@ -86,35 +86,3 @@ pub fn smoothstep(edge0: Number, edge1: Number, x: Number) -> Number {
 //     f32::lerp(f32::powf(x, floor), f32::powf(x, ceil), n - floor)
 // }
 
-pub trait Wrap {
-    /// v is input value, m is modulus. wrap(a, b) is a replacement for a % b.
-    // This won't work for negative or zero modulo values.
-    // Try this instead (if necessary):
-    // https://www.imaginary-institute.com/resources/TechNote12/TechNote12.html
-    // https://github.com/rust-lang/rust/issues/87970
-    // https://news.ycombinator.com/item?id=34540353
-    fn wrap(self, m: Self) -> Self;
-    fn wrap_every(duration: Self, )
-}
-
-impl Wrap for f32 {
-    fn wrap(self, m: Self) -> Self {
-        if m <= 0.0 { 0.0 } else { ((self % m) + m) % m }
-    }
-
-    fn wrap_every(duration: f32, now: f32) -> Self {
-        f32::wrap(now, duration) / duration
-    }
-}
-
-impl Wrap for f64 {
-    fn wrap(self, m: Self) -> Self {
-        if m <= 0.0 { 0.0 } else { ((self % m) + m) % m }
-    }
-}
-
-impl Wrap for i32 {
-    fn wrap(self, m: Self) -> Self {
-        if m <= 0 { 0 } else { ((self % m) + m) % m }
-    }
-}

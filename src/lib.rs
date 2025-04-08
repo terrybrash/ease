@@ -320,3 +320,33 @@ impl_ease_1d!(
     f32 => f32,
     f64 => f64,
 );
+
+pub trait Wrap {
+    /// v is input value, m is modulus. wrap(a, b) is a replacement for a % b.
+    /// This won't work for negative or zero modulo values.
+    /// Try this instead (if necessary):
+    /// https://www.imaginary-institute.com/resources/TechNote12/TechNote12.html
+    // https://github.com/rust-lang/rust/issues/87970
+    // https://news.ycombinator.com/item?id=34540353
+    fn wrap(self, m: Self) -> Self;
+    fn wrap_every(self, inverval: Self) -> Self;
+}
+
+macro_rules! impl_wrap {
+    ($($ty:ty),* $(,)?) => {
+        $(
+            impl Wrap for $ty {
+                fn wrap(self, m: Self) -> Self {
+                    let zero = Default::default();
+                    if m <= zero { zero } else { ((self % m) + m) % m }
+                }
+
+                fn wrap_every(self, interval: Self) -> Self {
+                    Self::wrap(self, interval) / interval
+                }
+            }
+        )*
+    };
+}
+
+impl_wrap!(f32, f64, i32, i64);
