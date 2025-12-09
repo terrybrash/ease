@@ -1,16 +1,20 @@
 pub trait FloatExt {
     fn lerp(self, a: Self, b: Self) -> Self;
 
-    /// Framerate independant "lerp" from `a` to `b`.
-    /// It's not really a lerp but more of an exponential easing where `lambda` is the
+    /// Framerate independant "lerp" from `from` to `to`.
+    /// It's not really a lerp but more of an exponential easing where `self` is the
     /// strength of the dampening. Can be greater than 1.0.
     /// https://www.rorydriscoll.com/2016/03/07/frame-rate-independent-damping-using-lerp/
-    fn damp(self, target: Self, lambda: Self, dt: Self) -> Self;
+    fn damp(self, from: Self, to: Self, dt: Self) -> Self;
 
     fn step(self, edge: Self) -> Self;
 
     /// A linear ease, equal to the identity function. Linear eases often appear mechanical and unphysical.
     fn linear(self) -> Self;
+
+    fn lerp_radians(self, a: Self, b: Self) -> Self;
+
+    fn damp_radians(self, from: Self, to: Self, dt: Self) -> Self;
 
     /// Returns a value from `0..1` along a parabolic curve.
     fn parabolic(self) -> Self;
@@ -84,12 +88,22 @@ macro_rules! impl_float_1d {
                     from + (to - from) * self
                 }
 
-                fn damp(self, target: Self, lambda: Self, dt: Self) -> Self {
-                    self.lerp(target, 1.0 - Self::exp(-lambda * dt))
+                fn damp(self, from: Self, to: Self, dt: Self) -> Self {
+                    (1.0 - Self::exp(-self * dt)).lerp(from, to)
                 }
 
                 fn step(self, edge: Self) -> Self {
                     if self < edge { 0.0 } else { 1.0 }
+                }
+
+                fn lerp_radians(self, a: Self, b: Self) -> Self {
+                    let cs = (1.0 - self) * Self::cos(a) + self * Self::cos(b);
+                    let sn = (1.0 - self) * Self::sin(a) + self * Self::sin(b);
+                    Self::atan2(sn, cs)
+                }
+
+                fn damp_radians(self, from: Self, to: Self, dt: Self) -> Self {
+                    Self::lerp_radians(1.0 - Self::exp(-self * dt), from, to)
                 }
 
                 fn linear(self) -> Self {

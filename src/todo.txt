@@ -29,16 +29,6 @@ impl Ease<f32> for Vec2 {
     }
 }
 
-pub fn damp_radians(a: Number, b: Number, lambda: f32, dt: f32) -> Number {
-    lerp_radians(a, b, 1.0 - f32::exp(-lambda * dt))
-}
-
-pub fn lerp_radians(a: Number, b: Number, x: Number) -> Number {
-    let cs = (1.0 - x) * f32::cos(a) + x * f32::cos(b);
-    let sn = (1.0 - x) * f32::sin(a) + x * f32::sin(b);
-    f32::atan2(sn, cs)
-}
-
 /// Fast approximation for raising a number to a non-integer power.
 // pub fn pow_fast(x: f32, n: f32) -> f32 {
 //     let floor = f32::floor(n);
