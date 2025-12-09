@@ -1,6 +1,25 @@
-pub trait Ease {
+pub trait FloatExt {
+    fn lerp(self, a: Self, b: Self) -> Self;
+
+    /// Framerate independant "lerp" from `a` to `b`.
+    /// It's not really a lerp but more of an exponential easing where `lambda` is the
+    /// strength of the dampening. Can be greater than 1.0.
+    /// https://www.rorydriscoll.com/2016/03/07/frame-rate-independent-damping-using-lerp/
+    fn damp(self, target: Self, lambda: Self, dt: Self) -> Self;
+
+    fn step(self, edge: Self) -> Self;
+
     /// A linear ease, equal to the identity function. Linear eases often appear mechanical and unphysical.
     fn linear(self) -> Self;
+
+    /// Returns a value from `0..1` along a parabolic curve.
+    fn parabolic(self) -> Self;
+
+    /// Returns a value from `0..1` along a hyperbolic curve.
+    fn hyperbolic(self) -> Self;
+
+    /// `edge0` shouldn't be greater than or equal to `edge1`
+    fn smoothstep(self, edge0: Self, edge1: Self) -> Self;
 
     fn in_back(self) -> Self;
     fn in_bounce(self) -> Self;
@@ -46,14 +65,48 @@ pub trait Ease {
 
     fn out_in_hard(self) -> Self;
     fn out_in_soft(self) -> Self;
+
+    /// v is input value, m is modulus. wrap(a, b) is a replacement for a % b.
+    /// This won't work for negative or zero modulo values.
+    /// Try this instead (if necessary):
+    /// https://www.imaginary-institute.com/resources/TechNote12/TechNote12.html
+    // https://github.com/rust-lang/rust/issues/87970
+    // https://news.ycombinator.com/item?id=34540353
+    fn wrap(self, m: Self) -> Self;
+    fn wrap_every(self, inverval: Self) -> Self;
 }
 
-macro_rules! impl_ease_1d {
+macro_rules! impl_float_1d {
     ($($ty:ty => $namespace:ident),* $(,)?) => {
         $(
-            impl Ease for $ty {
+            impl FloatExt for $ty {
+                fn lerp(self, from: Self, to: Self) -> Self {
+                    from + (to - from) * self
+                }
+
+                fn damp(self, target: Self, lambda: Self, dt: Self) -> Self {
+                    self.lerp(target, 1.0 - Self::exp(-lambda * dt))
+                }
+
+                fn step(self, edge: Self) -> Self {
+                    if self < edge { 0.0 } else { 1.0 }
+                }
+
                 fn linear(self) -> Self {
                     self
+                }
+
+                fn parabolic(self) -> Self {
+                    1.0 - Self::powf(self * 2.0 - 1.0, 2.0)
+                }
+
+                fn hyperbolic(self) -> Self {
+                    1.0 - 1.0 / (1.0 + self)
+                }
+
+                fn smoothstep(self, edge0: Self, edge1: Self) -> Self {
+                    let t = Self::clamp((self - edge0) / (edge1 - edge0), 0.0, 1.0);
+                    t * t * (3.0 - 2.0 * t)
                 }
 
                 fn in_sine(self) -> Self {
@@ -311,31 +364,7 @@ macro_rules! impl_ease_1d {
                         -1.0 / (self * 3.0 - 4.0)
                     }
                 }
-            }
-        )*
-    };
-}
 
-impl_ease_1d!(
-    f32 => f32,
-    f64 => f64,
-);
-
-pub trait Wrap {
-    /// v is input value, m is modulus. wrap(a, b) is a replacement for a % b.
-    /// This won't work for negative or zero modulo values.
-    /// Try this instead (if necessary):
-    /// https://www.imaginary-institute.com/resources/TechNote12/TechNote12.html
-    // https://github.com/rust-lang/rust/issues/87970
-    // https://news.ycombinator.com/item?id=34540353
-    fn wrap(self, m: Self) -> Self;
-    fn wrap_every(self, inverval: Self) -> Self;
-}
-
-macro_rules! impl_wrap {
-    ($($ty:ty),* $(,)?) => {
-        $(
-            impl Wrap for $ty {
                 fn wrap(self, m: Self) -> Self {
                     let zero = Default::default();
                     if m <= zero { zero } else { ((self % m) + m) % m }
@@ -349,4 +378,7 @@ macro_rules! impl_wrap {
     };
 }
 
-impl_wrap!(f32, f64, i32, i64);
+impl_float_1d!(
+    f32 => f32,
+    f64 => f64,
+);

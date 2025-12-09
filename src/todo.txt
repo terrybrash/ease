@@ -1,13 +1,3 @@
-pub trait Ease<L> {
-    /// Framerate independant "lerp" from `a` to `b`.
-    /// It's not really a lerp but more of an exponential easing where `lambda` is the
-    /// strength of the dampening. Can be greater than 1.0.
-    /// https://www.rorydriscoll.com/2016/03/07/frame-rate-independent-damping-using-lerp/
-    fn damp(self, target: Self, lambda: L, dt: f32) -> Self;
-    fn lerp(self, target: Self, lambda: L) -> Self;
-    fn step(self, x: Self) -> Self;
-}
-
 impl Ease<f64> for f64 {
     fn lerp(self, target: Self, s: f64) -> Self {
         self + (target - self) * s
@@ -15,20 +5,6 @@ impl Ease<f64> for f64 {
 
     fn damp(self, target: Self, lambda: f64, dt: f32) -> Self {
         self.lerp(target, 1.0 - f64::exp(-lambda * dt as f64))
-    }
-
-    fn step(self, edge: Self) -> Self {
-        if self < edge { 0.0 } else { 1.0 }
-    }
-}
-
-impl Ease<f32> for f32 {
-    fn lerp(self, target: Self, s: f32) -> Self {
-        self + (target - self) * s
-    }
-
-    fn damp(self, target: Self, lambda: f32, dt: f32) -> Self {
-        self.lerp(target, 1.0 - f32::exp(-lambda * dt))
     }
 
     fn step(self, edge: Self) -> Self {
@@ -63,26 +39,9 @@ pub fn lerp_radians(a: Number, b: Number, x: Number) -> Number {
     f32::atan2(sn, cs)
 }
 
-/// Returns a value from `0..1` along a parabolic curve.
-pub fn parabolic(x: Number) -> Number {
-    1.0 - f32::powf(x * 2.0 - 1.0, 2.0)
-}
-
-/// Returns a value from `0..1` along a hyperbolic curve.
-pub fn hyperbolic(rating: Number) -> Number {
-    1.0 - 1.0 / (1.0 + rating)
-}
-
-/// `edge0` shouldn't be greater than or equal to `edge1`
-pub fn smoothstep(edge0: Number, edge1: Number, x: Number) -> Number {
-    let t = Number::clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
-    t * t * (3.0 - 2.0 * t)
-}
-
 /// Fast approximation for raising a number to a non-integer power.
 // pub fn pow_fast(x: f32, n: f32) -> f32 {
 //     let floor = f32::floor(n);
 //     let ceil = f32::ceil(n);
 //     f32::lerp(f32::powf(x, floor), f32::powf(x, ceil), n - floor)
 // }
-
