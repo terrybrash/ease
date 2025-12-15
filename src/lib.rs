@@ -5,6 +5,7 @@ pub trait FloatExt {
     /// It's not really a lerp but more of an exponential easing where `self` is the
     /// strength of the dampening. Can be greater than 1.0.
     /// https://www.rorydriscoll.com/2016/03/07/frame-rate-independent-damping-using-lerp/
+    /// Also called "decay"
     fn damp(self, from: Self, to: Self, dt: Self) -> Self;
 
     fn step(self, edge: Self) -> Self;
@@ -15,6 +16,9 @@ pub trait FloatExt {
     fn lerp_radians(self, a: Self, b: Self) -> Self;
 
     fn damp_radians(self, from: Self, to: Self, dt: Self) -> Self;
+
+    /// Normalize angle to [-π, π] range
+    fn normalize_radians(self) -> Self;
 
     /// Returns a value from `0..1` along a parabolic curve.
     fn parabolic(self) -> Self;
@@ -108,8 +112,40 @@ macro_rules! impl_float_1d {
                     Self::atan2(sn, cs)
                 }
 
+                // fn slerp(self, from: Self, to: Self) -> Self {
+                //     // Normalize angles to [-π, π] range
+                //     let from = from.normalize_angle();
+                //     let to = to.normalize_angle();
+
+                //     // Calculate the shortest angular distance
+                //     let mut delta = to - from;
+
+                //     // Take the shorter path around the circle
+                //     const PI: $namespace = core::$namespace::consts::PI;
+                //     if delta > PI {
+                //         delta -= 2.0 * PI;
+                //     } else if delta < -PI {
+                //         delta += 2.0 * PI;
+                //     }
+
+                //     // Linear interpolation along the shortest arc
+                //     Self::normalize_angle(from + delta * self)
+                // }
+
+
                 fn damp_radians(self, from: Self, to: Self, dt: Self) -> Self {
                     Self::lerp_radians(1.0 - Self::exp(-self * dt), from, to)
+                }
+
+                fn normalize_radians(self) -> Self {
+                    const PI: $namespace = core::$namespace::consts::PI;
+                    let mut normalized = self % (2.0 * PI);
+                    if normalized > PI {
+                        normalized -= 2.0 * PI;
+                    } else if normalized < -PI {
+                        normalized += 2.0 * PI;
+                    }
+                    normalized
                 }
 
                 fn linear(self) -> Self {
