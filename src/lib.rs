@@ -78,6 +78,12 @@ pub trait FloatExt {
     // https://news.ycombinator.com/item?id=34540353
     fn wrap(self, m: Self) -> Self;
     fn wrap_every(self, inverval: Self) -> Self;
+
+    /// Convert an unsigned unit (0..1) into a signed unit (-1..1)
+    fn as_bipolar(self) -> Self;
+
+    /// Convert a signed unit (-1..1) into an unsigned unit (0..1)
+    fn as_unipolar(self) -> Self;
 }
 
 macro_rules! impl_float_1d {
@@ -386,6 +392,14 @@ macro_rules! impl_float_1d {
 
                 fn wrap_every(self, interval: Self) -> Self {
                     Self::wrap(self, interval) / interval
+                }
+
+                fn as_bipolar(self) -> Self {
+                    self * 2.0 - 1.0
+                }
+
+                fn as_unipolar(self) -> Self {
+                    (self + 1.0) * 0.5
                 }
             }
         )*
