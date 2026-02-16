@@ -1,4 +1,7 @@
-pub trait FloatExt {
+use glam::Vec2;
+
+pub trait FloatExt<Component> {
+    /// Linearly interpolates between `a` and `b` by `self`
     fn lerp(self, a: Self, b: Self) -> Self;
 
     /// Framerate independant "lerp" from `from` to `to`.
@@ -6,19 +9,26 @@ pub trait FloatExt {
     /// strength of the dampening. Can be greater than 1.0.
     /// https://www.rorydriscoll.com/2016/03/07/frame-rate-independent-damping-using-lerp/
     /// Also called "decay"
-    fn damp(self, from: Self, to: Self, dt: Self) -> Self;
+    fn damp(self, from: Self, to: Self, dt: Component) -> Self;
 
+    /// Returns 0.0 if `self < edge`, otherwise 1.0.
     fn step(self, edge: Self) -> Self;
 
     /// A linear ease, equal to the identity function. Linear eases often appear mechanical and unphysical.
     fn linear(self) -> Self;
 
-    fn lerp_radians(self, a: Self, b: Self) -> Self;
+    /// Blends two angles by interpolating their unit vector components.
+    /// Naturally handles wrapping. Non-constant angular velocity.
+    fn nlerp_rad(self, a: Self, b: Self) -> Self;
 
-    fn damp_radians(self, from: Self, to: Self, dt: Self) -> Self;
+    /// Interpolates between two angles along the shortest arc
+    /// at constant angular velocity.
+    fn lerp_rad(self, from: Self, to: Self) -> Self;
+
+    fn damp_rad(self, from: Self, to: Self, dt: Component) -> Self;
 
     /// Normalize angle to [-π, π] range
-    fn normalize_radians(self) -> Self;
+    fn normalize_rad(self) -> Self;
 
     /// Returns a value from `0..1` along a parabolic curve.
     fn parabolic(self) -> Self;
@@ -83,22 +93,22 @@ pub trait FloatExt {
     fn wrap(self, m: Self) -> Self;
     fn wrap_every(self, inverval: Self) -> Self;
 
-    /// Convert an unsigned unit (0..1) into a signed unit (-1..1)
+    /// Transform an unsigned unit (0..1) into a signed unit (-1..1)
     fn as_bipolar(self) -> Self;
 
-    /// Convert a signed unit (-1..1) into an unsigned unit (0..1)
+    /// Transform a signed unit (-1..1) into an unsigned unit (0..1)
     fn as_unipolar(self) -> Self;
 }
 
 macro_rules! impl_float_1d {
     ($($ty:ty => $namespace:ident),* $(,)?) => {
         $(
-            impl FloatExt for $ty {
+            impl FloatExt<$ty> for $ty {
                 fn lerp(self, from: Self, to: Self) -> Self {
                     from + (to - from) * self
                 }
 
-                fn damp(self, from: Self, to: Self, dt: Self) -> Self {
+                fn damp(self, from: Self, to: Self, dt: $ty) -> Self {
                     (1.0 - Self::exp(-self * dt)).lerp(from, to)
                 }
 
@@ -106,38 +116,33 @@ macro_rules! impl_float_1d {
                     if self < edge { 0.0 } else { 1.0 }
                 }
 
-                fn lerp_radians(self, a: Self, b: Self) -> Self {
+                fn nlerp_rad(self, a: Self, b: Self) -> Self {
                     let cs = (1.0 - self) * Self::cos(a) + self * Self::cos(b);
                     let sn = (1.0 - self) * Self::sin(a) + self * Self::sin(b);
                     Self::atan2(sn, cs)
                 }
 
-                // fn slerp(self, from: Self, to: Self) -> Self {
-                //     // Normalize angles to [-π, π] range
-                //     let from = from.normalize_angle();
-                //     let to = to.normalize_angle();
+                fn lerp_rad(self, from: Self, to: Self) -> Self {
+                    let from = from.normalize_rad();
+                    let to = to.normalize_rad();
 
-                //     // Calculate the shortest angular distance
-                //     let mut delta = to - from;
+                    let mut delta = to - from;
 
-                //     // Take the shorter path around the circle
-                //     const PI: $namespace = core::$namespace::consts::PI;
-                //     if delta > PI {
-                //         delta -= 2.0 * PI;
-                //     } else if delta < -PI {
-                //         delta += 2.0 * PI;
-                //     }
+                    const PI: $namespace = core::$namespace::consts::PI;
+                    if delta > PI {
+                        delta -= 2.0 * PI;
+                    } else if delta < -PI {
+                        delta += 2.0 * PI;
+                    }
 
-                //     // Linear interpolation along the shortest arc
-                //     Self::normalize_angle(from + delta * self)
-                // }
-
-
-                fn damp_radians(self, from: Self, to: Self, dt: Self) -> Self {
-                    Self::lerp_radians(1.0 - Self::exp(-self * dt), from, to)
+                    (from + delta * self).normalize_rad()
                 }
 
-                fn normalize_radians(self) -> Self {
+                fn damp_rad(self, from: Self, to: Self, dt: $ty) -> Self {
+                    Self::lerp_rad(1.0 - Self::exp(-self * dt), from, to)
+                }
+
+                fn normalize_rad(self) -> Self {
                     const PI: $namespace = core::$namespace::consts::PI;
                     let mut normalized = self % (2.0 * PI);
                     if normalized > PI {
@@ -446,3 +451,231 @@ impl_float_1d!(
     f32 => f32,
     f64 => f64,
 );
+
+impl FloatExt<f32> for Vec2 {
+    fn lerp(self, from: Self, to: Self) -> Self {
+        Vec2::new(self.x.lerp(from.x, to.x), self.y.lerp(from.y, to.y))
+    }
+
+    fn damp(self, from: Self, to: Self, dt: f32) -> Self {
+        Vec2::new(self.x.damp(from.x, to.x, dt), self.y.damp(from.y, to.y, dt))
+    }
+
+    fn step(self, edge: Self) -> Self {
+        Vec2::new(self.x.step(edge.x), self.y.step(edge.y))
+    }
+
+    fn nlerp_rad(self, a: Self, b: Self) -> Self {
+        Vec2::new(self.x.nlerp_rad(a.x, b.x), self.y.nlerp_rad(a.y, b.y))
+    }
+
+    fn lerp_rad(self, from: Self, to: Self) -> Self {
+        Vec2::new(self.x.lerp_rad(from.x, to.x), self.y.lerp_rad(from.y, to.y))
+    }
+
+    fn damp_rad(self, from: Self, to: Self, dt: f32) -> Self {
+        Vec2::new(
+            self.x.damp_rad(from.x, to.x, dt),
+            self.y.damp_rad(from.y, to.y, dt),
+        )
+    }
+
+    fn normalize_rad(self) -> Self {
+        Vec2::new(self.x.normalize_rad(), self.y.normalize_rad())
+    }
+
+    fn linear(self) -> Self {
+        self
+    }
+
+    fn parabolic(self) -> Self {
+        Vec2::new(self.x.parabolic(), self.y.parabolic())
+    }
+
+    fn hyperbolic(self) -> Self {
+        Vec2::new(self.x.hyperbolic(), self.y.hyperbolic())
+    }
+
+    fn smoothstep(self, edge0: Self, edge1: Self) -> Self {
+        Vec2::new(
+            self.x.smoothstep(edge0.x, edge1.x),
+            self.y.smoothstep(edge0.y, edge1.y),
+        )
+    }
+
+    fn in_back(self) -> Self {
+        Vec2::new(self.x.in_back(), self.y.in_back())
+    }
+
+    fn in_bounce(self) -> Self {
+        Vec2::new(self.x.in_bounce(), self.y.in_bounce())
+    }
+
+    fn in_circ(self) -> Self {
+        Vec2::new(self.x.in_circ(), self.y.in_circ())
+    }
+
+    fn in_elastic(self) -> Self {
+        Vec2::new(self.x.in_elastic(), self.y.in_elastic())
+    }
+
+    fn in_expo(self) -> Self {
+        Vec2::new(self.x.in_expo(), self.y.in_expo())
+    }
+
+    fn in_pow2(self) -> Self {
+        Vec2::new(self.x.in_pow2(), self.y.in_pow2())
+    }
+
+    fn in_pow3(self) -> Self {
+        Vec2::new(self.x.in_pow3(), self.y.in_pow3())
+    }
+
+    fn in_pow4(self) -> Self {
+        Vec2::new(self.x.in_pow4(), self.y.in_pow4())
+    }
+
+    fn in_pow5(self) -> Self {
+        Vec2::new(self.x.in_pow5(), self.y.in_pow5())
+    }
+
+    fn in_pow6(self) -> Self {
+        Vec2::new(self.x.in_pow6(), self.y.in_pow6())
+    }
+
+    fn in_pow7(self) -> Self {
+        Vec2::new(self.x.in_pow7(), self.y.in_pow7())
+    }
+
+    fn in_pow8(self) -> Self {
+        Vec2::new(self.x.in_pow8(), self.y.in_pow8())
+    }
+
+    fn in_sine(self) -> Self {
+        Vec2::new(self.x.in_sine(), self.y.in_sine())
+    }
+
+    fn out_back(self) -> Self {
+        Vec2::new(self.x.out_back(), self.y.out_back())
+    }
+
+    fn out_bounce(self) -> Self {
+        Vec2::new(self.x.out_bounce(), self.y.out_bounce())
+    }
+
+    fn out_circ(self) -> Self {
+        Vec2::new(self.x.out_circ(), self.y.out_circ())
+    }
+
+    fn out_elastic(self) -> Self {
+        Vec2::new(self.x.out_elastic(), self.y.out_elastic())
+    }
+
+    fn out_expo(self) -> Self {
+        Vec2::new(self.x.out_expo(), self.y.out_expo())
+    }
+
+    fn out_pow(self, y: Self) -> Self {
+        Vec2::new(self.x.out_pow(y.x), self.y.out_pow(y.y))
+    }
+
+    fn out_pow2(self) -> Self {
+        Vec2::new(self.x.out_pow2(), self.y.out_pow2())
+    }
+
+    fn out_pow3(self) -> Self {
+        Vec2::new(self.x.out_pow3(), self.y.out_pow3())
+    }
+
+    fn out_pow4(self) -> Self {
+        Vec2::new(self.x.out_pow4(), self.y.out_pow4())
+    }
+
+    fn out_pow5(self) -> Self {
+        Vec2::new(self.x.out_pow5(), self.y.out_pow5())
+    }
+
+    fn out_pow6(self) -> Self {
+        Vec2::new(self.x.out_pow6(), self.y.out_pow6())
+    }
+
+    fn out_pow7(self) -> Self {
+        Vec2::new(self.x.out_pow7(), self.y.out_pow7())
+    }
+
+    fn out_pow8(self) -> Self {
+        Vec2::new(self.x.out_pow8(), self.y.out_pow8())
+    }
+
+    fn out_sine(self) -> Self {
+        Vec2::new(self.x.out_sine(), self.y.out_sine())
+    }
+
+    fn in_out_triangle(self) -> Self {
+        Vec2::new(self.x.in_out_triangle(), self.y.in_out_triangle())
+    }
+
+    fn in_out_back(self) -> Self {
+        Vec2::new(self.x.in_out_back(), self.y.in_out_back())
+    }
+
+    fn in_out_bounce(self) -> Self {
+        Vec2::new(self.x.in_out_bounce(), self.y.in_out_bounce())
+    }
+
+    fn in_out_circ(self) -> Self {
+        Vec2::new(self.x.in_out_circ(), self.y.in_out_circ())
+    }
+
+    fn in_out_elastic(self) -> Self {
+        Vec2::new(self.x.in_out_elastic(), self.y.in_out_elastic())
+    }
+
+    fn in_out_expo(self) -> Self {
+        Vec2::new(self.x.in_out_expo(), self.y.in_out_expo())
+    }
+
+    fn in_out_pow2(self) -> Self {
+        Vec2::new(self.x.in_out_pow2(), self.y.in_out_pow2())
+    }
+
+    fn in_out_pow3(self) -> Self {
+        Vec2::new(self.x.in_out_pow3(), self.y.in_out_pow3())
+    }
+
+    fn in_out_pow4(self) -> Self {
+        Vec2::new(self.x.in_out_pow4(), self.y.in_out_pow4())
+    }
+
+    fn in_out_pow5(self) -> Self {
+        Vec2::new(self.x.in_out_pow5(), self.y.in_out_pow5())
+    }
+
+    fn in_out_sine(self) -> Self {
+        Vec2::new(self.x.in_out_sine(), self.y.in_out_sine())
+    }
+
+    fn out_in_hard(self) -> Self {
+        Vec2::new(self.x.out_in_hard(), self.y.out_in_hard())
+    }
+
+    fn out_in_soft(self) -> Self {
+        Vec2::new(self.x.out_in_soft(), self.y.out_in_soft())
+    }
+
+    fn wrap(self, m: Self) -> Self {
+        Vec2::new(self.x.wrap(m.x), self.y.wrap(m.y))
+    }
+
+    fn wrap_every(self, interval: Self) -> Self {
+        Vec2::new(self.x.wrap_every(interval.x), self.y.wrap_every(interval.y))
+    }
+
+    fn as_bipolar(self) -> Self {
+        Vec2::new(self.x.as_bipolar(), self.y.as_bipolar())
+    }
+
+    fn as_unipolar(self) -> Self {
+        Vec2::new(self.x.as_unipolar(), self.y.as_unipolar())
+    }
+}
