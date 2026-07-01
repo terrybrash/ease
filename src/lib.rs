@@ -91,13 +91,13 @@ pub trait FloatExt<Component> {
     // https://github.com/rust-lang/rust/issues/87970
     // https://news.ycombinator.com/item?id=34540353
     fn wrap(self, m: Self) -> Self;
-    fn wrap_every(self, inverval: Self) -> Self;
+    fn wrap_every(self, interval: Self) -> Self;
 
     /// Transform an unsigned unit (0..1) into a signed unit (-1..1)
-    fn as_bipolar(self) -> Self;
+    fn into_bipolar(self) -> Self;
 
     /// Transform a signed unit (-1..1) into an unsigned unit (0..1)
-    fn as_unipolar(self) -> Self;
+    fn into_unipolar(self) -> Self;
 }
 
 macro_rules! impl_float_1d {
@@ -211,9 +211,9 @@ macro_rules! impl_float_1d {
                     if self == 0.0 {
                         0.0
                     } else if self == 1.0 {
-                        return 1.0;
+                        1.0
                     } else {
-                        return -Self::powf(2.0, 10.0 * self - 10.0) * Self::sin((self * 10.0 - 10.75) * c4);
+                        -Self::powf(2.0, 10.0 * self - 10.0) * Self::sin((self * 10.0 - 10.75) * c4)
                     }
                 }
 
@@ -280,9 +280,9 @@ macro_rules! impl_float_1d {
                     if self == 0.0 {
                         0.0
                     } else if self == 1.0 {
-                        return 1.0;
+                        1.0
                     } else {
-                        return Self::powf(2.0, -10.0 * self) * Self::sin((self * 10.0 - 0.75) * c4) + 1.0;
+                        Self::powf(2.0, -10.0 * self) * Self::sin((self * 10.0 - 0.75) * c4) + 1.0
                     }
                 }
 
@@ -320,7 +320,7 @@ macro_rules! impl_float_1d {
                 }
 
                 fn in_out_triangle(self) -> Self {
-                    Self::abs(self * 2.0 - 1.0) * -1.0 + 1.0
+                    1.0 - Self::abs(self * 2.0 - 1.0)
                 }
 
                 fn in_out_sine(self) -> Self {
@@ -384,11 +384,11 @@ macro_rules! impl_float_1d {
                     if self == 0.0 {
                         0.0
                     } else if self == 1.0 {
-                        return 1.0;
+                        1.0
                     } else if self < 0.5 {
-                        return Self::powf(2.0, 20.0 * self - 10.0) / 2.0;
+                        Self::powf(2.0, 20.0 * self - 10.0) / 2.0
                     } else {
-                        return (2.0 - Self::powf(2.0, -20.0 * self + 10.0)) / 2.0;
+                        (2.0 - Self::powf(2.0, -20.0 * self + 10.0)) / 2.0
                     }
                 }
 
@@ -420,7 +420,7 @@ macro_rules! impl_float_1d {
 
                 fn out_in_soft(self) -> Self {
                     if self < 0.5 {
-                        1.0 - 1.0 / (self * 1.3333333 + 1.0)
+                        1.0 - 1.0 / (self * (4.0 / 3.0) + 1.0)
                     } else {
                         -1.0 / (self * 3.0 - 4.0)
                     }
@@ -435,11 +435,11 @@ macro_rules! impl_float_1d {
                     Self::wrap(self, interval) / interval
                 }
 
-                fn as_bipolar(self) -> Self {
+                fn into_bipolar(self) -> Self {
                     self * 2.0 - 1.0
                 }
 
-                fn as_unipolar(self) -> Self {
+                fn into_unipolar(self) -> Self {
                     (self + 1.0) * 0.5
                 }
             }
@@ -671,11 +671,11 @@ impl FloatExt<f32> for Vec2 {
         Vec2::new(self.x.wrap_every(interval.x), self.y.wrap_every(interval.y))
     }
 
-    fn as_bipolar(self) -> Self {
-        Vec2::new(self.x.as_bipolar(), self.y.as_bipolar())
+    fn into_bipolar(self) -> Self {
+        Vec2::new(self.x.into_bipolar(), self.y.into_bipolar())
     }
 
-    fn as_unipolar(self) -> Self {
-        Vec2::new(self.x.as_unipolar(), self.y.as_unipolar())
+    fn into_unipolar(self) -> Self {
+        Vec2::new(self.x.into_unipolar(), self.y.into_unipolar())
     }
 }
